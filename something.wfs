@@ -1,0 +1,29 @@
+; REGISTERS:
+; r(u8) g(u8) b(u8)
+; x(u8) y(u8)
+; w(u8) h(u8)
+; id(u8)
+; r1..r64 (f32)
+
+; gray background
+
+set r, 31
+set g, 31
+set b, 31
+
+fillscr
+
+; yellow rectangle. this is an analog of "hello, world!" text
+
+set r, 255
+set g, 255
+set b, 0
+
+set x, 16
+set y, 16
+set w, 64
+set h, 32
+
+rect
+
+update
