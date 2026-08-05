@@ -19,10 +19,18 @@ enum Token {
 
 pub fn compile_from_file(file: File) -> Vec<u8> {
     let reader = BufReader::new(file);
-    let lines = reader.lines().map(|line| line.unwrap());
+    let input_lines = reader.lines().map(|line| line.unwrap());
+
+    let mut lines: Vec<Vec<Token>> = Vec::new();
     
-    for line in lines {
-        println!(">>> {line}");
+    for input_line in input_lines {
+        println!(">>> {input_line}");
+
+        let mut chars = input_line.chars().peekable();
+
+        for ch in chars {
+            
+        }
     }
 
     Vec::new()
