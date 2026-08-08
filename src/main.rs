@@ -53,7 +53,7 @@ fn main() {
     } else {
         println!("compiling...");
         file.rewind().unwrap();
-        compiler::compile_from_file(file)
+        compiler::compile_from_file(file, path)
     };
 }
 
