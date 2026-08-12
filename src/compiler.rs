@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader};
 const MAX_IDENTIFIER_LENGTH: usize = 32;
 
 #[repr(u8)]
+#[derive(PartialEq)]
 enum Token {
     Identifier(String),
     String(String),
@@ -66,6 +67,10 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
 
         // `for ch in chars` takes ownership
         while let Some(ch) = chars.next() {
+            if ch.is_ascii_whitespace() {
+                continue
+            }
+
             let identifier: bool = ch.is_ascii_alphabetic() || ch == '_';
             let number: bool = ch.is_ascii_digit();
             let string: bool = is_string_token!(ch);
@@ -184,6 +189,7 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
 
                     ',' => Some(Token::Comma),
 
+                    // whitespaces and tabs are skipped in the beginning
                     _ => None
                 };
             }
