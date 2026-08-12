@@ -55,6 +55,9 @@ fn main() {
         file.rewind().unwrap();
         compiler::compile_from_file(file, path)
     };
+
+    // replace this with `start_vm(code)`-like function
+    drop(code);
 }
 
 /* use raylib::prelude::*;
