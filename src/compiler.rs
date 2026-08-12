@@ -41,11 +41,35 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
             }};
         }
 
+        macro_rules! to_digit {
+            ($ch:ident) => {
+                $ch.to_digit(10).unwrap()
+            };
+        }
+
+        macro_rules! num_op {
+            ($var:ident, $func:ident, $func_expr:expr) => {
+                if let Some(result) = $var.$func($func_expr) {
+                    $var = result;
+                } else {
+                    error!("integer overflow");
+                    break;
+                }
+            };
+        }
+
+        macro_rules! is_string_token {
+            ($ch:expr) => {
+                ($ch == '"' || $ch == '\'')
+            };
+        }
+
         // `for ch in chars` takes ownership
         while let Some(ch) = chars.next() {
-            let identifier = ch.is_ascii_alphabetic() || ch == '_';
-            let number = ch.is_ascii_digit();
-            let line_comment = ch == '#';
+            let identifier: bool = ch.is_ascii_alphabetic() || ch == '_';
+            let number: bool = ch.is_ascii_digit();
+            let string: bool = is_string_token!(ch);
+            let line_comment: bool = ch == '#';
 
             let mut new_token: Option<Token> = None;
 
@@ -75,12 +99,6 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
             }
 
             if number {
-                macro_rules! to_digit {
-                    ($ch:ident) => {
-                        $ch.to_digit(10).unwrap()
-                    };
-                }
-
                 let mut num_a: u32 = to_digit!(ch);
                 let mut num_b: u32 = 0;
                 let mut collecting_a = true;
@@ -100,26 +118,15 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                         }
                     }
 
-                    macro_rules! op {
-                        ($var:ident, $func:ident, $func_expr:expr) => {
-                            if let Some(result) = $var.$func($func_expr) {
-                                $var = result;
-                            } else {
-                                error!("integer overflow");
-                                break;
-                            }
-                        };
-                    }
-
                     let digit = to_digit!(ch);
                     assert!(digit < 10);
 
                     if collecting_a {
-                        op!(num_a, checked_mul, 10);
-                        op!(num_a, checked_add, digit);
+                        num_op!(num_a, checked_mul, 10);
+                        num_op!(num_a, checked_add, digit);
                     } else {
-                        op!(num_b, checked_mul, 10);
-                        op!(num_b, checked_add, digit);
+                        num_op!(num_b, checked_mul, 10);
+                        num_op!(num_b, checked_add, digit);
                     }
 
                     chars.next();
@@ -130,6 +137,29 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
 
                 println!("> number: {num} [{snum}]");
                 new_token = Some(Token::Number(num));
+            }
+
+            if string {
+                let mut string: String = String::new();
+                let mut closed = false;
+
+                while let Some(ch) = chars.next() {
+                    if is_string_token!(ch) {
+                        closed = true;
+                        break;
+                    }
+
+                    string.push(ch);
+                }
+
+                if closed {
+                    println!("> string: [{string}]");
+
+                    let string = Token::String(string);
+                    new_token = Some(string);
+                } else {
+                    error!("unclosed string");
+                }
             }
 
             if line_comment {
