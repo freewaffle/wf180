@@ -16,7 +16,7 @@ enum Token {
     Div,
 
     Comma,
-    RightArrow
+    Colon
 }
 
 pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
@@ -184,20 +184,12 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
             if new_token.is_none() {
                 new_token = match ch {
                     '+' => Some(Token::Add),
-
-                    '-' => {
-                        if chars.peek().is_some_and(|ch| *ch == '>') {
-                            chars.next();
-                            Some(Token::RightArrow)
-                        } else {
-                            Some(Token::Sub)
-                        }
-                    },
-
+                    '-' => Some(Token::Sub),
                     '*' => Some(Token::Mul),
                     '/' => Some(Token::Div),
 
                     ',' => Some(Token::Comma),
+                    ':' => Some(Token::Colon),
 
                     // whitespaces and tabs are skipped in the beginning
                     _ => None
