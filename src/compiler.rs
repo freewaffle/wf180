@@ -65,13 +65,19 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
             };
         }
 
+        macro_rules! is_identifier_token {
+            ($ch:expr) => {
+                ($ch.is_ascii_alphabetic() || $ch == '_')
+            };
+        }
+
         // `for ch in chars` takes ownership
         while let Some(ch) = chars.next() {
             if ch.is_ascii_whitespace() {
                 continue
             }
 
-            let identifier: bool = ch.is_ascii_alphabetic() || ch == '_';
+            let identifier: bool = is_identifier_token!(ch);
             let number: bool = ch.is_ascii_digit();
             let string: bool = is_string_token!(ch);
             let line_comment: bool = ch == '#';
@@ -84,16 +90,18 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                 ident.push(ch);
 
                 while let Some(ch) = chars.peek() {
+                    let ch = *ch;
+
                     if ident.len() >= MAX_IDENTIFIER_LENGTH {
                         error!(format!("too long identifier (max length is {MAX_IDENTIFIER_LENGTH} symbols)"));
                         break;
                     }
 
-                    if !ch.is_ascii_alphabetic() {
+                    if !is_identifier_token!(ch) {
                         break;
                     }
 
-                    ident.push(*ch);
+                    ident.push(ch);
                     chars.next();
                 }
 
@@ -109,8 +117,10 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                 let mut collecting_a = true;
 
                 while let Some(ch) = chars.peek() {
+                    let ch = *ch;
+
                     if !ch.is_ascii_digit() {
-                        if *ch == '.' {
+                        if ch == '.' {
                             if collecting_a {
                                 collecting_a = false;
                                 continue;
