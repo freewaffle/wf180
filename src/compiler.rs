@@ -47,6 +47,8 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
             let number = ch.is_ascii_digit();
             let line_comment = ch == '#';
 
+            let mut new_token: Option<Token> = None;
+
             if identifier {
                 let mut ident: String = String::with_capacity(MAX_IDENTIFIER_LENGTH);
 
@@ -69,7 +71,7 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                 println!("> ident: {ident}");
 
                 let ident = Token::Identifier(ident);
-                line.push(ident);
+                new_token = Some(ident);
             }
 
             if number {
@@ -127,13 +129,40 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                 let num: f32 = snum.parse().unwrap();
 
                 println!("> number: {num} [{snum}]");
+                new_token = Some(Token::Number(num));
             }
 
             if line_comment {
                 break;
             }
 
-            // match ...
+            if new_token.is_none() {
+                new_token = match ch {
+                    '+' => Some(Token::Add),
+
+                    '-' => {
+                        if chars.peek().is_some_and(|ch| *ch == '>') {
+                            chars.next();
+                            Some(Token::RightArrow)
+                        } else {
+                            Some(Token::Sub)
+                        }
+                    },
+
+                    '*' => Some(Token::Mul),
+                    '/' => Some(Token::Div),
+
+                    ',' => Some(Token::Comma),
+
+                    _ => None
+                };
+            }
+
+            if let Some(tok) = new_token {
+                line.push(tok);
+            } else {
+                error!(format!("invalid character: [{ch}]"));
+            }
         }
 
         if !line.is_empty() && !bad {
