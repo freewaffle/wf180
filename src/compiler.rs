@@ -29,8 +29,6 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
     let mut lines: Vec<Vec<Token>> = Vec::new();
     
     for input_line in input_lines {
-        println!("\n>>> [{input_line}]");
-
         let mut chars = input_line.chars().peekable();
         let mut line: Vec<Token> = Vec::new();
 
@@ -107,8 +105,6 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                     chars.next();
                 }
 
-                println!("> ident: {ident}");
-
                 let ident = Token::Identifier(ident);
                 new_token = Some(ident);
             }
@@ -152,7 +148,6 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                 let snum: String = format!("{num_a}.{num_b}");
                 let num: f32 = snum.parse().unwrap();
 
-                println!("> number: {num} [{snum}]");
                 new_token = Some(Token::Number(num));
             }
 
@@ -170,8 +165,6 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                 }
 
                 if closed {
-                    println!("> string: [{string}]");
-
                     let string = Token::String(string);
                     new_token = Some(string);
                 } else {
@@ -208,7 +201,6 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
         }
 
         if !line.is_empty() && !bad {
-            println!(">>> added!");
             lines.push(line);
         }
 
