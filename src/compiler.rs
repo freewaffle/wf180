@@ -16,7 +16,9 @@ enum Token {
     Div,
 
     Comma,
-    Colon
+    Colon,
+    OpenParen,
+    ClosedParen
 }
 
 pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
@@ -190,6 +192,8 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
 
                     ',' => Some(Token::Comma),
                     ':' => Some(Token::Colon),
+                    '(' => Some(Token::OpenParen),
+                    ')' => Some(Token::ClosedParen),
 
                     // whitespaces and tabs are skipped in the beginning
                     _ => None
