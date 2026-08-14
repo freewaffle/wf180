@@ -196,7 +196,7 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
             if let Some(tok) = new_token {
                 line.push(tok);
             } else {
-                error!(format!("invalid character: [{ch}]"));
+                error!(format!("unrecognized character: [{ch}]"));
             }
         }
 
