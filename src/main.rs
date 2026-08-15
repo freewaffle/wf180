@@ -53,7 +53,12 @@ fn main() {
     } else {
         println!("compiling...");
         file.rewind().unwrap();
-        compiler::compile_from_file(file, path)
+        if let Ok(code) = compiler::compile_from_file(file, path) {
+            code
+        } else {
+            eprintln!("error: can't compile");
+            std::process::exit(1);
+        }
     };
 
     // replace this with `start_vm(code)`-like function

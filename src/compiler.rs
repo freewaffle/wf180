@@ -21,24 +21,44 @@ enum Token {
     ClosedParen
 }
 
-pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
+#[repr(u8)]
+pub enum ErrorKind {
+    UnrecognizedCharacter,
+    IntegerOverflow,
+    TooLongIdentifier,
+    RedundantDot,
+    UnclosedString,
+}
+
+pub fn compile_from_file(file: File, filename: &String) -> Result<Vec<u8>, ErrorKind> {
     let reader = BufReader::new(file);
     let input_lines = reader.lines().map(|line| line.unwrap());
     let mut current_line: usize = 1;
 
     let mut lines: Vec<Vec<Token>> = Vec::new();
+
+    let mut error: Option<ErrorKind> = None;
+
+    macro_rules! try_set_error {
+        ($kind:ident) => {
+            if error.is_none() {
+                error = Some(ErrorKind::$kind);
+            }
+        };
+    }
     
     for input_line in input_lines {
         let mut chars = input_line.chars().peekable();
         let mut line: Vec<Token> = Vec::new();
 
-        let mut bad = false;
+        let mut bad_line = false;
 
-        macro_rules! error {
-            ($msg:expr) => {{
+        macro_rules! print_error {
+            ($err_kind:ident, $msg:expr) => {{
                 eprintln!("[{filename}]: line {current_line}:");
                 eprintln!("  error: {}", $msg);
-                bad = true;
+                bad_line = true;
+                try_set_error!($err_kind);
             }};
         }
 
@@ -53,7 +73,7 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                 if let Some(result) = $var.$func($func_expr) {
                     $var = result;
                 } else {
-                    error!("integer overflow");
+                    print_error!(IntegerOverflow, "integer overflow");
                     break;
                 }
             };
@@ -93,7 +113,10 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                     let ch = *ch;
 
                     if ident.len() >= MAX_IDENTIFIER_LENGTH {
-                        error!(format!("too long identifier (max length is {MAX_IDENTIFIER_LENGTH} symbols)"));
+                        print_error!(TooLongIdentifier, format!(
+                            "too long identifier (max length is {} symbols)",
+                            MAX_IDENTIFIER_LENGTH
+                        ));
                         break;
                     }
 
@@ -123,7 +146,7 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                                 collecting_a = false;
                                 continue;
                             } else {
-                                error!("extraneous dot near number");
+                                print_error!(RedundantDot, "redundant dot near number");
                                 break;
                             }
                         } else {
@@ -168,7 +191,7 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
                     let string = Token::String(string);
                     new_token = Some(string);
                 } else {
-                    error!("unclosed string");
+                    print_error!(UnclosedString, "unclosed string");
                 }
             }
 
@@ -196,16 +219,23 @@ pub fn compile_from_file(file: File, filename: &String) -> Vec<u8> {
             if let Some(tok) = new_token {
                 line.push(tok);
             } else {
-                error!(format!("unrecognized character: [{ch}]"));
+                print_error!(UnrecognizedCharacter, format!(
+                    "unrecognized character: [{}]",
+                    ch
+                ));
             }
         }
 
-        if !line.is_empty() && !bad {
+        if !line.is_empty() && !bad_line {
             lines.push(line);
         }
 
         current_line += 1;
     }
 
-    Vec::new()
+    if let Some(error) = error {
+        Err(error)
+    } else {
+        Ok(Vec::new())
+    }
 }
