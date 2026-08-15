@@ -220,7 +220,7 @@ pub fn compile_from_file(file: File, filename: &String) -> Result<Vec<u8>, Error
                 line.push(tok);
             } else {
                 print_error!(UnrecognizedCharacter, format!(
-                    "unrecognized character: [{}]",
+                    "unrecognized character: '{}'",
                     ch
                 ));
             }
