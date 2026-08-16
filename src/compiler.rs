@@ -4,7 +4,6 @@ use std::io::{BufRead, BufReader};
 const MAX_IDENTIFIER_LENGTH: usize = 32;
 
 #[repr(u8)]
-#[derive(PartialEq, Debug)]
 enum Token {
     Identifier(String),
     String(String),
@@ -280,7 +279,7 @@ impl Compiler {
 
 pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorKind> {
     let mut compiler = Compiler::new(filename);
-    
+
     compiler.parse_file(file)?;
 
     /* for (n, line) in compiler.lines.iter().enumerate() {
