@@ -13,14 +13,14 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     
     let path = if let Some(path) = args.get(1) {
-        path
+        path.to_owned()
     } else {
         eprintln!("error: missing file name");
         eprintln!("try executing: wf180 [FILENAME]");
         std::process::exit(1);
     };
 
-    let mut file = match File::open(path) {
+    let mut file = match File::open(&path) {
         Ok(file) => file,
         Err(err) => {
             eprintln!("error: can't open [{path}]: {}", err.kind());
