@@ -280,6 +280,7 @@ impl Compiler {
 
 pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorKind> {
     let mut compiler = Compiler::new(filename);
+    
     compiler.parse_file(file)?;
 
     /* for (n, line) in compiler.lines.iter().enumerate() {
