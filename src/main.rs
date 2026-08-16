@@ -1,11 +1,11 @@
 #![deny(clippy::all)]
 #![forbid(unsafe_code)]
 
-mod magic;
-mod compiler;
-
 use std::fs::File;
 use std::io::{Read, Seek};
+
+mod magic;
+mod compiler;
 
 use magic::*;
 
