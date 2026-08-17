@@ -6,6 +6,7 @@ const MAX_IDENTIFIER_LENGTH: usize = 32;
 #[repr(u8)]
 enum Token {
     Identifier(String),
+    DoubleIdentifier(String, String),
     String(String),
     Number(f32),
 
@@ -19,6 +20,11 @@ enum Token {
     OpenParen,
     ClosedParen
 }
+
+/* #[repr(u8)]
+enum Command {
+    FunctionHeader
+} */
 
 #[repr(u8)]
 pub enum ErrorKind {
@@ -95,23 +101,11 @@ impl Compiler {
             };
         }
 
-        // `for ch in chars` takes ownership
-        while let Some(ch) = chars.next() {
-            if ch.is_ascii_whitespace() {
-                continue
-            }
-
-            let identifier: bool = is_identifier_token!(ch);
-            let number: bool = ch.is_ascii_digit();
-            let string: bool = is_string_token!(ch);
-            let line_comment: bool = ch == '#';
-
-            let mut new_token: Option<Token> = None;
-
-            if identifier {
+        macro_rules! collect_identifier {
+            ($start_char:expr) => {{
                 let mut ident: String = String::with_capacity(MAX_IDENTIFIER_LENGTH);
 
-                ident.push(ch);
+                ident.push($start_char);
 
                 while let Some(ch) = chars.peek() {
                     let ch = *ch;
@@ -132,6 +126,25 @@ impl Compiler {
                     chars.next();
                 }
 
+                ident
+            }};
+        }
+
+        // `for ch in chars` takes ownership
+        while let Some(ch) = chars.next() {
+            if ch.is_ascii_whitespace() {
+                continue
+            }
+
+            let identifier: bool = is_identifier_token!(ch);
+            let number: bool = ch.is_ascii_digit();
+            let string: bool = is_string_token!(ch);
+            let line_comment: bool = ch == '#';
+
+            let mut new_token: Option<Token> = None;
+
+            if identifier {
+                let ident: String = collect_identifier!(ch);
                 let ident = Token::Identifier(ident);
                 new_token = Some(ident);
             }
@@ -211,7 +224,30 @@ impl Compiler {
                     '/' => Some(Token::Div),
 
                     ',' => Some(Token::Comma),
-                    ':' => Some(Token::Colon),
+
+                    ':' => {
+                        let mut remove_last_token = false;
+
+                        let tok = if chars.peek().is_some_and(|ch| is_identifier_token!(*ch)) {
+                            if let Some(Token::Identifier(left_ident)) = line.last() {
+                                remove_last_token = true;
+                                let ch = chars.next().unwrap();
+                                let right_ident = collect_identifier!(ch);
+                                Token::DoubleIdentifier(left_ident.to_owned(), right_ident)
+                            } else {
+                                Token::Colon
+                            }
+                        } else {
+                            Token::Colon
+                        };
+
+                        if remove_last_token {
+                            line.pop();
+                        }
+
+                        Some(tok)
+                    },
+
                     '(' => Some(Token::OpenParen),
                     ')' => Some(Token::ClosedParen),
 
