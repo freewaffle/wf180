@@ -1,4 +1,4 @@
-func get_gray() : number
+func get_gray() number
     return 31
 end
 
