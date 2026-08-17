@@ -3,6 +3,7 @@ use std::io::{BufRead, BufReader};
 
 const MAX_IDENTIFIER_LENGTH: usize = 32;
 
+// #[derive(Debug)]
 #[repr(u8)]
 enum Token {
     Identifier(String),
@@ -317,12 +318,13 @@ pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorK
     let compiler = Compiler::new(filename);
 
     let tokens = compiler.parse_file(file)?;
-    // replace this with `analyze_tokens`-like function
-    drop(tokens);
 
-    /* for (n, line) in compiler.lines.iter().enumerate() {
+    /* for (n, line) in tokens.iter().enumerate() {
         println!("[{}] {:?}", n+1, line);
     } */
+
+    // replace this with `analyze_tokens`-like function
+    drop(tokens);
 
     Ok(Vec::new())
 }
