@@ -21,10 +21,10 @@ enum Token {
     ClosedParen
 }
 
-/* #[repr(u8)]
+#[repr(u8)]
 enum Command {
     FunctionHeader
-} */
+}
 
 #[repr(u8)]
 pub enum ErrorKind {
@@ -36,21 +36,18 @@ pub enum ErrorKind {
 }
 
 struct Compiler {
-    pub filename: String,
-    pub lines: Vec<Vec<Token>>,
-    pub code: Vec<u8>
+    pub filename: String
 }
 
 impl Compiler {
     pub fn new(filename: String) -> Self {
         Self {
-            filename,
-            lines: Vec::new(),
-            code: Vec::new()
+            filename
         }
     }
 
-    pub fn parse_line(&mut self, line: String, current_line: usize) -> Result<Vec<Token>, ErrorKind> {
+    #[must_use]
+    pub fn parse_line(&self, line: String, current_line: usize) -> Result<Vec<Token>, ErrorKind> {
         let mut error: Option<ErrorKind> = None;
 
         macro_rules! try_set_error {
@@ -275,10 +272,13 @@ impl Compiler {
         }
     }
 
-    pub fn parse_file(&mut self, file: File) -> Result<(), ErrorKind> {
+    #[must_use]
+    pub fn parse_file(&self, file: File) -> Result<Vec<Vec<Token>>, ErrorKind> {
         let reader = BufReader::new(file);
         let input_lines = reader.lines().map(|line| line.unwrap());
         let mut current_line: usize = 1;
+
+        let mut lines: Vec<Vec<Token>> = Vec::new();
 
         let mut error: Option<ErrorKind> = None;
 
@@ -294,7 +294,7 @@ impl Compiler {
             match self.parse_line(input_line, current_line) {
                 Ok(line) => {
                     if !line.is_empty() && error.is_none() {
-                        self.lines.push(line);
+                        lines.push(line);
                     }
                 }
                 Err(err) => {
@@ -308,19 +308,21 @@ impl Compiler {
         if let Some(error) = error {
             Err(error)
         } else {
-            Ok(())
+            Ok(lines)
         }
     }
 }
 
 pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorKind> {
-    let mut compiler = Compiler::new(filename);
+    let compiler = Compiler::new(filename);
 
-    compiler.parse_file(file)?;
+    let tokens = compiler.parse_file(file)?;
+    // replace this with `analyze_tokens`-like function
+    drop(tokens);
 
     /* for (n, line) in compiler.lines.iter().enumerate() {
         println!("[{}] {:?}", n+1, line);
     } */
 
-    Ok(compiler.code)
+    Ok(Vec::new())
 }
