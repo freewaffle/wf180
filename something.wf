@@ -4,7 +4,8 @@ end
 
 # gray background
 let gray:number, get_gray()
-fill_screen gray, gray, gray
+set_color gray, gray, gray
+fill_screen
 
 # yellow rectangle. analog of "hello, world!" text
 
