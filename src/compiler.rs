@@ -3,6 +3,11 @@ use std::io::{BufRead, BufReader};
 
 const MAX_IDENTIFIER_LENGTH: usize = 32;
 
+/* const BUILTIN_TYPES: [&str; 2] = [
+    "void",
+    "number"
+]; */
+
 // #[derive(Debug)]
 #[repr(u8)]
 enum Token {
@@ -22,9 +27,30 @@ enum Token {
     ClosedParen
 }
 
+struct TypedIdentifier {
+    pub ident: String,
+    pub ty: String
+}
+
 #[repr(u8)]
 enum Command {
-    FunctionHeader
+    FunctionHeader {
+        name: String,
+        args: Vec<TypedIdentifier>,
+        ret: String
+    },
+    FunctionCall {
+        name: String,
+        args: Vec<Vec<Token>>
+    },
+    Return {
+        expr: Vec<Token>
+    },
+    End,
+    Let {
+        var: TypedIdentifier,
+        expr: Vec<Token>
+    },
 }
 
 #[repr(u8)]
@@ -311,6 +337,10 @@ impl Compiler {
         } else {
             Ok(lines)
         }
+    }
+
+    pub fn parse_tokens(&self, tokens: Vec<Vec<Token>>) -> Result<Vec<Command>, ErrorKind> {
+        Ok(Vec::new())
     }
 }
 
