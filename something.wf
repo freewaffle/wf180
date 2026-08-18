@@ -12,4 +12,5 @@ let x:number, 16
 let y:number, 16
 let w:number, 64
 let h:number, 32
-rect x, y, w, h, 255, 255, 0
+set_color 255, 255, 0
+rect x, y, w, h
