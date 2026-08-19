@@ -9,6 +9,12 @@ mod compiler;
 
 use magic::*;
 
+macro_rules! error_exit {
+    () => {
+        std::process::exit(1)
+    };
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     
@@ -17,14 +23,14 @@ fn main() {
     } else {
         eprintln!("error: missing file name");
         eprintln!("try executing: wf180 [FILENAME]");
-        std::process::exit(1);
+        error_exit!();
     };
 
     let mut file = match File::open(&path) {
         Ok(file) => file,
         Err(err) => {
             eprintln!("error: can't open [{path}]: {}", err.kind());
-            std::process::exit(1);
+            error_exit!();
         }
     };
 
@@ -33,20 +39,20 @@ fn main() {
         Ok(bytes) => bytes,
         Err(err) => {
             eprintln!("error: can't read [{path}]: {}", err.kind());
-            std::process::exit(1);
+            error_exit!();
         }
     };
 
     if bytes_read < MAGIC_LEN {
         eprintln!("error: [{path}] is too short");
-        std::process::exit(1);
+        error_exit!();
     }
 
     let code: Vec<u8> = if this_magic == MAGIC {
         let mut code: Vec<u8> = Vec::new();
         if let Err(err) = file.read_to_end(&mut code) {
             eprintln!("error: can't read [{path}]: {}", err.kind());
-            std::process::exit(1);
+            error_exit!();
         } else {
             code
         }
@@ -57,7 +63,7 @@ fn main() {
             code
         } else {
             eprintln!("error: can't compile");
-            std::process::exit(1);
+            error_exit!();
         }
     };
 
