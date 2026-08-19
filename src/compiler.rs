@@ -10,7 +10,7 @@ const MAX_IDENTIFIER_LENGTH: usize = 32;
 
 // #[derive(Debug)]
 #[repr(u8)]
-enum Token {
+enum TokenKind {
     Identifier(String),
     DoubleIdentifier(String, String),
     String(String),
@@ -25,6 +25,12 @@ enum Token {
     Colon,
     OpenParen,
     ClosedParen
+}
+
+struct Token {
+    pub line_pos: usize,
+    pub char_pos: usize,
+    pub kind: TokenKind
 }
 
 struct TypedIdentifier {
@@ -60,6 +66,7 @@ pub enum ErrorKind {
     TooLongIdentifier,
     RedundantDot,
     UnclosedString,
+    ExpectedToken,
 }
 
 struct Compiler {
@@ -74,7 +81,7 @@ impl Compiler {
     }
 
     #[must_use]
-    pub fn parse_line(&self, line: String, current_line: usize) -> Result<Vec<Token>, ErrorKind> {
+    pub fn parse_line(&self, line: String, line_pos: usize) -> Result<Vec<Token>, ErrorKind> {
         let mut error: Option<ErrorKind> = None;
 
         macro_rules! try_set_error {
@@ -87,10 +94,11 @@ impl Compiler {
 
         let mut chars = line.chars().peekable();
         let mut line: Vec<Token> = Vec::new();
+        let mut char_pos: usize = 1;
 
         macro_rules! print_error {
             ($err_kind:ident, $msg:expr) => {{
-                eprintln!("[{}]: line {}:", self.filename, current_line);
+                eprintln!("[{}]: line {}:", self.filename, line_pos);
                 eprintln!("  error: {}", $msg);
                 try_set_error!($err_kind);
             }};
@@ -154,6 +162,16 @@ impl Compiler {
             }};
         }
 
+        macro_rules! token {
+            ($kind:ident) => {
+                Token { line_pos, char_pos, kind: TokenKind::$kind }
+            };
+
+            ($kind:ident, $expr:expr) => {
+                Token { line_pos, char_pos, kind: TokenKind::$kind($expr) }
+            };
+        }
+
         // `for ch in chars` takes ownership
         while let Some(ch) = chars.next() {
             if ch.is_ascii_whitespace() {
@@ -169,8 +187,8 @@ impl Compiler {
 
             if identifier {
                 let ident: String = collect_identifier!(ch);
-                let ident = Token::Identifier(ident);
-                new_token = Some(ident);
+                let token = token!(Identifier, ident);
+                new_token = Some(token);
             }
 
             if number {
@@ -212,7 +230,8 @@ impl Compiler {
                 let snum: String = format!("{num_a}.{num_b}");
                 let num: f32 = snum.parse().unwrap();
 
-                new_token = Some(Token::Number(num));
+                let token = token!(Number, num);
+                new_token = Some(token);
             }
 
             if string {
@@ -229,8 +248,8 @@ impl Compiler {
                 }
 
                 if closed {
-                    let string = Token::String(string);
-                    new_token = Some(string);
+                    let token = token!(String, string);
+                    new_token = Some(token);
                 } else {
                     print_error!(UnclosedString, "unclosed string");
                 }
@@ -241,28 +260,29 @@ impl Compiler {
             }
 
             if new_token.is_none() {
-                new_token = match ch {
-                    '+' => Some(Token::Add),
-                    '-' => Some(Token::Sub),
-                    '*' => Some(Token::Mul),
-                    '/' => Some(Token::Div),
+                let kind = match ch {
+                    '+' => Some(TokenKind::Add),
+                    '-' => Some(TokenKind::Sub),
+                    '*' => Some(TokenKind::Mul),
+                    '/' => Some(TokenKind::Div),
 
-                    ',' => Some(Token::Comma),
+                    ',' => Some(TokenKind::Comma),
 
                     ':' => {
                         let mut remove_last_token = false;
 
                         let tok = if chars.peek().is_some_and(|ch| is_identifier_token!(*ch)) {
-                            if let Some(Token::Identifier(left_ident)) = line.last() {
+                            if let Some(token) = line.last() &&
+                            let TokenKind::Identifier(left_ident) = &token.kind {
                                 remove_last_token = true;
                                 let ch = chars.next().unwrap();
                                 let right_ident = collect_identifier!(ch);
-                                Token::DoubleIdentifier(left_ident.to_owned(), right_ident)
+                                TokenKind::DoubleIdentifier(left_ident.to_owned(), right_ident)
                             } else {
-                                Token::Colon
+                                TokenKind::Colon
                             }
                         } else {
-                            Token::Colon
+                            TokenKind::Colon
                         };
 
                         if remove_last_token {
@@ -272,12 +292,16 @@ impl Compiler {
                         Some(tok)
                     },
 
-                    '(' => Some(Token::OpenParen),
-                    ')' => Some(Token::ClosedParen),
+                    '(' => Some(TokenKind::OpenParen),
+                    ')' => Some(TokenKind::ClosedParen),
 
                     // whitespaces and tabs are skipped in the beginning
                     _ => None
                 };
+
+                if let Some(kind) = kind {
+                    new_token = Some(Token { line_pos, char_pos, kind });
+                } // else None
             }
 
             if let Some(tok) = new_token {
@@ -290,6 +314,8 @@ impl Compiler {
                     ch
                 ));
             }
+
+            char_pos += 1;
         }
 
         if let Some(error) = error {
@@ -308,24 +334,18 @@ impl Compiler {
         let mut lines: Vec<Vec<Token>> = Vec::new();
 
         let mut error: Option<ErrorKind> = None;
-
-        macro_rules! try_set_error {
-            ($kind:expr) => {
-                if error.is_none() {
-                    error = Some($kind);
-                }
-            };
-        }
         
         for input_line in input_lines {
             match self.parse_line(input_line, current_line) {
                 Ok(line) => {
-                    if !line.is_empty() && error.is_none() {
+                    if error.is_none() {
                         lines.push(line);
                     }
                 }
                 Err(err) => {
-                    try_set_error!(err);
+                    if error.is_none() {
+                        error = Some(err);
+                    }
                 }
             }
 
