@@ -8,7 +8,7 @@ const MAX_IDENTIFIER_LENGTH: usize = 32;
     "number"
 ]; */
 
-// #[derive(Debug)]
+#[derive(PartialEq, Debug)]
 #[repr(u8)]
 enum TokenKind {
     Identifier(String),
@@ -30,7 +30,8 @@ enum TokenKind {
 struct Token {
     pub line_pos: usize,
     pub char_pos: usize,
-    pub kind: TokenKind
+    pub kind: TokenKind,
+    pub line_str: String
 }
 
 struct TypedIdentifier {
@@ -69,11 +70,13 @@ pub enum ErrorKind {
     ExpectedToken,
 }
 
+// TODO: rename to Parser
 struct Compiler {
     pub filename: String
 }
 
 impl Compiler {
+    #[inline]
     pub fn new(filename: String) -> Self {
         Self {
             filename
@@ -81,7 +84,7 @@ impl Compiler {
     }
 
     #[must_use]
-    pub fn parse_line(&self, line: String, line_pos: usize) -> Result<Vec<Token>, ErrorKind> {
+    pub fn parse_line(&self, line_str: String, line_pos: usize) -> Result<Vec<Token>, ErrorKind> {
         let mut error: Option<ErrorKind> = None;
 
         macro_rules! try_set_error {
@@ -92,7 +95,7 @@ impl Compiler {
             };
         }
 
-        let mut chars = line.chars().peekable();
+        let mut chars = line_str.chars().peekable();
         let mut line: Vec<Token> = Vec::new();
         let mut char_pos: usize = 1;
 
@@ -162,13 +165,29 @@ impl Compiler {
             }};
         }
 
+        macro_rules! get_line_str {
+            () => {
+                line_str.to_owned()
+            };
+        }
+
         macro_rules! token {
             ($kind:ident) => {
-                Token { line_pos, char_pos, kind: TokenKind::$kind }
+                Token {
+                    line_pos,
+                    char_pos,
+                    kind: TokenKind::$kind,
+                    line_str: get_line_str!()
+                }
             };
 
             ($kind:ident, $expr:expr) => {
-                Token { line_pos, char_pos, kind: TokenKind::$kind($expr) }
+                Token {
+                    line_pos,
+                    char_pos,
+                    kind: TokenKind::$kind($expr),
+                    line_str: get_line_str!()
+                }
             };
         }
 
@@ -272,8 +291,9 @@ impl Compiler {
                         let mut remove_last_token = false;
 
                         let tok = if chars.peek().is_some_and(|ch| is_identifier_token!(*ch)) {
-                            if let Some(token) = line.last() &&
-                            let TokenKind::Identifier(left_ident) = &token.kind {
+                            if let Some(token) = line.last()
+                            && let TokenKind::Identifier(left_ident) = &token.kind
+                            {
                                 remove_last_token = true;
                                 let ch = chars.next().unwrap();
                                 let right_ident = collect_identifier!(ch);
@@ -300,12 +320,12 @@ impl Compiler {
                 };
 
                 if let Some(kind) = kind {
-                    new_token = Some(Token { line_pos, char_pos, kind });
+                    new_token = Some(Token { line_pos, char_pos, kind, line_str: get_line_str!() });
                 } // else None
             }
 
             if let Some(tok) = new_token {
-                if error.is_none() {
+                if !line.is_empty() && error.is_none() {
                     line.push(tok);
                 }
             } else {
@@ -359,7 +379,111 @@ impl Compiler {
         }
     }
 
+    #[must_use]
     pub fn parse_tokens(&self, tokens: Vec<Vec<Token>>) -> Result<Vec<Command>, ErrorKind> {
+        let mut error: Option<ErrorKind> = None;
+
+        macro_rules! try_set_error {
+            ($kind:ident) => {
+                if error.is_none() {
+                    error = Some(ErrorKind::$kind);
+                }
+            };
+        }
+        
+        for tokens in tokens {
+            if tokens.is_empty() {
+                continue
+            }
+
+            let first_token = tokens.first().unwrap();
+            let line_pos = first_token.line_pos;
+            let line_str = &first_token.line_str;
+
+            macro_rules! print_error {
+                ($err_kind:ident, $msg:expr, $tokn:expr) => {{
+                    let token = &tokens[$tokn];
+                    eprintln!("[{}]: line {}:", self.filename, line_pos);
+                    eprintln!("  {line_str}");
+                    eprintln!(" {:->} ^", token.char_pos);
+                    eprintln!("  error: {}", $msg);
+                    try_set_error!($err_kind);
+                    continue;
+                }};
+                
+                ($err_kind:ident, $msg:expr) => {{
+                    eprintln!("[{}]: line {}:", self.filename, line_pos);
+                    eprintln!("  error: {}", $msg);
+                    try_set_error!($err_kind);
+                    continue;
+                }};
+            }
+
+            macro_rules! is_token_of_type {
+                ($pos:expr, $kind:ident) => {
+                    (tokens.get($pos).is_some_and(|tok| tok.kind == TokenKind::$kind))
+                };
+                ($pos:expr, $kind:ident, $expr:expr) => {
+                    (tokens.get($pos).is_some_and(|tok| tok.kind == TokenKind::$kind($expr)))
+                };
+            }
+
+            macro_rules! get_token {
+                ($index:expr, $kind:ident) => {
+                    match tokens.get($index) {
+                        Some(Token {
+                            kind: TokenKind::$kind(ident),
+                            ..
+                        }) => Some(ident),
+                        _ => None,
+                    }
+                };
+            }
+
+            if let TokenKind::Identifier(ident) = &first_token.kind {
+                // as_str() shouldn't clone string, looks like it just
+                // "converts" String into primitive str
+                match ident.as_str() {
+                    "func" => {
+                        let fn_name = if let Some(ident) = get_token!(1, Identifier) {
+                            ident.clone()
+                        } else {
+                            print_error!(ExpectedToken, "expected identifier", 1);
+                        };
+
+                        let mut closed_paren_pos: usize = 0;
+                        
+                        if is_token_of_type!(2, OpenParen) {
+                            let sub_tokens = tokens.get(3..).unwrap();
+
+                            for (pos, token) in sub_tokens.into_iter().enumerate() {
+                                if token.kind == TokenKind::ClosedParen {
+                                    closed_paren_pos = 3 + pos;
+                                }
+                            }
+                        } else {
+                            print_error!(ExpectedToken, "expected open paren '('", 2);
+                        };
+
+                        let args: Vec<TypedIdentifier> = Vec::new();
+
+                        if closed_paren_pos > 0 {
+                            let sub_tokens = tokens.get(3..).unwrap();
+
+                            for (pos, token) in sub_tokens.into_iter().enumerate() {
+                            }
+                        } else {
+                            print_error!(ExpectedToken, "expected closed paren ')'");
+                        }
+                    }
+
+                    _ => {}
+                }
+            } else {
+                print_error!(ExpectedToken, "expected identifier", 0);
+            }
+        }
+
         Ok(Vec::new())
     }
 }
@@ -369,12 +493,21 @@ pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorK
 
     let tokens = compiler.parse_file(file)?;
 
-    /* for (n, line) in tokens.iter().enumerate() {
-        println!("[{}] {:?}", n+1, line);
-    } */
+    for line in tokens.iter() {
+        if let Some(tok) = line.first() {
+            print!("[{}] ", tok.line_pos);
+        } else {
+            continue;
+        }
 
-    // replace this with `analyze_tokens`-like function
-    drop(tokens);
+        for token in line {
+            print!("{:?}, ", token.kind);
+        }
+
+        println!();
+    }
+
+    let commands = compiler.parse_tokens(tokens)?;
 
     Ok(Vec::new())
 }
