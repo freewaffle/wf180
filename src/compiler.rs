@@ -325,7 +325,7 @@ impl Compiler {
             }
 
             if let Some(tok) = new_token {
-                if !line.is_empty() && error.is_none() {
+                if error.is_none() {
                     line.push(tok);
                 }
             } else {
@@ -410,7 +410,7 @@ impl Compiler {
                     try_set_error!($err_kind);
                     continue;
                 }};
-                
+
                 ($err_kind:ident, $msg:expr) => {{
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
                     eprintln!("  error: {}", $msg);
