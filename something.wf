@@ -1,11 +1,12 @@
-func get_gray() number
-    return 31
+func say_hello() void
+    println "hello, WF-180!"
 end
 
+say_hello
+
 # gray background
-let gray:number, get_gray()
-set_color gray, gray, gray
-fill_screen
+
+fill_screen 31, 31, 31
 
 # yellow rectangle. analog of "hello, world!" text
 
@@ -13,5 +14,4 @@ let x:number, 16
 let y:number, 16
 let w:number, 64
 let h:number, 32
-set_color 255, 255, 0
-rect x, y, w, h
+rect x, y, w, h, 255, 255, 0
