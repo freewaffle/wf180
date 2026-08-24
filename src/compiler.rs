@@ -40,11 +40,11 @@ struct TypedIdentifier {
 }
 
 #[repr(u8)]
-enum Command {
+enum CommandKind {
     FunctionHeader {
         name: String,
         args: Vec<TypedIdentifier>,
-        ret: String
+        return_type: String
     },
     FunctionCall {
         name: String,
@@ -58,6 +58,10 @@ enum Command {
         var: TypedIdentifier,
         expr: Vec<Token>
     },
+}
+
+struct Command {
+    pub kind: CommandKind
 }
 
 #[repr(u8)]
@@ -381,6 +385,7 @@ impl Compiler {
 
     #[must_use]
     pub fn parse_tokens(&self, tokens: Vec<Vec<Token>>) -> Result<Vec<Command>, ErrorKind> {
+        let mut commands: Vec<Command> = Vec::new();
         let mut error: Option<ErrorKind> = None;
 
         macro_rules! try_set_error {
@@ -391,7 +396,7 @@ impl Compiler {
             };
         }
         
-        for tokens in tokens {
+        'global: for tokens in tokens {
             if tokens.is_empty() {
                 continue
             }
@@ -399,6 +404,8 @@ impl Compiler {
             let first_token = tokens.first().unwrap();
             let line_pos = first_token.line_pos;
             let line_str = &first_token.line_str;
+
+            let mut new_command: Option<Command> = None;
 
             macro_rules! print_error {
                 ($err_kind:ident, $msg:expr, $tokn:expr) => {{
@@ -408,14 +415,14 @@ impl Compiler {
                     eprintln!(" {:->} ^", token.char_pos);
                     eprintln!("  error: {}", $msg);
                     try_set_error!($err_kind);
-                    continue;
+                    continue 'global;
                 }};
 
                 ($err_kind:ident, $msg:expr) => {{
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
                     eprintln!("  error: {}", $msg);
                     try_set_error!($err_kind);
-                    continue;
+                    continue 'global;
                 }};
             }
 
@@ -428,7 +435,7 @@ impl Compiler {
                 };
             }
 
-            macro_rules! get_token {
+            macro_rules! get_token_value {
                 ($index:expr, $kind:ident) => {
                     match tokens.get($index) {
                         Some(Token {
@@ -442,39 +449,64 @@ impl Compiler {
 
             if let TokenKind::Identifier(ident) = &first_token.kind {
                 // as_str() shouldn't clone string, looks like it just
-                // "converts" String into primitive str
+                // does nothing but changes the type.
+
+                // don't be afraid of `clone`: the `compile_from_file` function,
+                // which is preferred compilation way, transfers ownership of
+                // produced tokens to this function, dropping them after this
+                // function finishes.
+
                 match ident.as_str() {
                     "func" => {
-                        let fn_name = if let Some(ident) = get_token!(1, Identifier) {
+                        let name = if let Some(ident) = get_token_value!(1, Identifier) {
                             ident.clone()
                         } else {
                             print_error!(ExpectedToken, "expected identifier", 1);
                         };
 
-                        let mut closed_paren_pos: usize = 0;
+                        let mut args: Vec<TypedIdentifier> = Vec::new();
+                        let mut return_type: Option<String> = None;
                         
-                        if is_token_of_type!(2, OpenParen) {
-                            let sub_tokens = tokens.get(3..).unwrap();
+                        if !is_token_of_type!(2, OpenParen) {
+                            print_error!(ExpectedToken, "expected open paren '('", 2);
+                        }
 
-                            for (pos, token) in sub_tokens.into_iter().enumerate() {
-                                if token.kind == TokenKind::ClosedParen {
-                                    closed_paren_pos = 3 + pos;
+                        let mut left_tokens = tokens.get(3..).unwrap();
+
+                        for (pos, token) in left_tokens.into_iter().enumerate() {
+                            let char_pos = token.char_pos;
+
+                            match &token.kind {
+                                TokenKind::ClosedParen => {
+                                    if let Some(ident) = get_token_value!(pos + 1, Identifier) {
+                                        return_type = Some(ident.clone());
+                                    }
+
+                                    break;
+                                }
+                                TokenKind::DoubleIdentifier(ident, ty) => {
+                                    let arg = TypedIdentifier {
+                                        ident: ident.clone(),
+                                        ty: ty.clone()
+                                    };
+                                    args.push(arg);
+                                }
+                                _ => {
+                                    print_error!(ExpectedToken, "expected typed identifier `name:type`", char_pos);
                                 }
                             }
+                        }
+
+                        let return_type: String = if let Some(str) = return_type {
+                            str
                         } else {
-                            print_error!(ExpectedToken, "expected open paren '('", 2);
+                            let last_token = tokens.last().unwrap();
+                            print_error!(ExpectedToken, "expected return type", last_token.char_pos + 1);
                         };
 
-                        let args: Vec<TypedIdentifier> = Vec::new();
-
-                        if closed_paren_pos > 0 {
-                            let sub_tokens = tokens.get(3..).unwrap();
-
-                            for (pos, token) in sub_tokens.into_iter().enumerate() {
-                            }
-                        } else {
-                            print_error!(ExpectedToken, "expected closed paren ')'");
-                        }
+                        new_command = Some(Command {
+                            kind: CommandKind::FunctionHeader { name, args, return_type }
+                        });
                     }
 
                     _ => {}
@@ -482,9 +514,17 @@ impl Compiler {
             } else {
                 print_error!(ExpectedToken, "expected identifier", 0);
             }
+
+            if let Some(command) = new_command && error.is_none() {
+                commands.push(command);
+            }
         }
 
-        Ok(Vec::new())
+        if let Some(error) = error {
+            Err(error)
+        } else {
+            Ok(commands)
+        }
     }
 }
 
