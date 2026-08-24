@@ -75,11 +75,11 @@ pub enum ErrorKind {
 }
 
 // TODO: rename to Parser
-struct Compiler {
+struct Parser {
     pub filename: String
 }
 
-impl Compiler {
+impl Parser {
     #[inline]
     pub fn new(filename: String) -> Self {
         Self {
@@ -296,8 +296,7 @@ impl Compiler {
 
                         let tok = if chars.peek().is_some_and(|ch| is_identifier_token!(*ch)) {
                             if let Some(token) = line.last()
-                            && let TokenKind::Identifier(left_ident) = &token.kind
-                            {
+                            && let TokenKind::Identifier(left_ident) = &token.kind {
                                 remove_last_token = true;
                                 let ch = chars.next().unwrap();
                                 let right_ident = collect_identifier!(ch);
@@ -324,7 +323,12 @@ impl Compiler {
                 };
 
                 if let Some(kind) = kind {
-                    new_token = Some(Token { line_pos, char_pos, kind, line_str: get_line_str!() });
+                    new_token = Some(Token {
+                        line_pos,
+                        char_pos,
+                        kind,
+                        line_str: get_line_str!()
+                    });
                 } // else None
             }
 
@@ -471,7 +475,7 @@ impl Compiler {
                             print_error!(ExpectedToken, "expected open paren '('", 2);
                         }
 
-                        let mut left_tokens = tokens.get(3..).unwrap();
+                        let left_tokens = tokens.get(3..).unwrap();
 
                         for (pos, token) in left_tokens.into_iter().enumerate() {
                             let char_pos = token.char_pos;
@@ -529,7 +533,7 @@ impl Compiler {
 }
 
 pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorKind> {
-    let compiler = Compiler::new(filename);
+    let compiler = Parser::new(filename);
 
     let tokens = compiler.parse_file(file)?;
 
