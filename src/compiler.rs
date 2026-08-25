@@ -27,6 +27,7 @@ enum TokenKind {
     ClosedParen
 }
 
+#[derive(Debug)]
 struct Token {
     pub line_pos: usize,
     pub char_pos: usize,
@@ -34,12 +35,14 @@ struct Token {
     pub line_str: String
 }
 
+#[derive(Debug)]
 struct TypedIdentifier {
     pub ident: String,
     pub ty: String
 }
 
 #[repr(u8)]
+#[derive(Debug)]
 enum CommandKind {
     FunctionHeader {
         name: String,
@@ -61,7 +64,8 @@ enum CommandKind {
 }
 
 struct Command {
-    pub kind: CommandKind
+    pub kind: CommandKind,
+    pub line_pos: usize
 }
 
 #[repr(u8)]
@@ -477,6 +481,15 @@ impl Parser {
                 }};
             }
 
+            macro_rules! command {
+                ($kind:expr) => {
+                    Command {
+                        kind: $kind,
+                        line_pos
+                    }
+                };
+            }
+
             if let TokenKind::Identifier(ident) = &first_token.kind {
                 // as_str() shouldn't clone string, looks like it just
                 // does nothing but changes the type.
@@ -486,7 +499,7 @@ impl Parser {
                 // produced tokens to this function, dropping them after this
                 // function finishes.
 
-                match ident.as_str() {
+                new_command = match ident.as_str() {
                     "func" => {
                         let name = if let Some(ident) = get_token_value!(1, Identifier) {
                             ident.clone()
@@ -547,9 +560,7 @@ impl Parser {
 
                         check_redundant_tokens!(redundant_pos - 1);
 
-                        new_command = Some(Command {
-                            kind: CommandKind::FunctionHeader { name, args, return_type }
-                        });
+                        Some(command!(CommandKind::FunctionHeader { name, args, return_type }))
                     }
 
                     "end" => {
@@ -557,20 +568,22 @@ impl Parser {
                             redundant_tokens_error!();
                         }
 
-                        new_command = Some(Command {
-                            kind: CommandKind::End
-                        });
+                        Some(command!(CommandKind::End))
                     }
 
-                    _ => {}
+                    _ => {
+                        None
+                    }
                 }
             } else {
                 print_error!(ExpectedToken, "expected identifier");
             }
 
-            if let Some(command) = new_command && error.is_none() {
-                commands.push(command);
-            } else if error.is_some() {
+            if error.is_none() {
+                if let Some(command) = new_command {
+                    commands.push(command);
+                }
+            } else if commands.is_empty() {
                 // free memory taken by commands (we won't return them anyway)
                 commands = Vec::new();
             }
@@ -604,6 +617,10 @@ pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorK
     }
 
     let commands = compiler.parse_tokens(tokens)?;
+    
+    for command in commands.iter() {
+        println!("[{}] {:?}", command.line_pos, command.kind);
+    }
 
     Ok(Vec::new())
 }
