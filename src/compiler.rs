@@ -72,6 +72,7 @@ pub enum ErrorKind {
     RedundantDot,
     UnclosedString,
     ExpectedToken,
+    RedundantTokens,
 }
 
 struct Parser {
@@ -460,6 +461,22 @@ impl Parser {
                 };
             }
 
+            macro_rules! redundant_tokens_error {
+                () => {
+                    print_error!(RedundantTokens, "redundant tokens");
+                };
+            }
+
+            macro_rules! check_redundant_tokens {
+                ($start:expr) => {{
+                    let len = tokens.len().checked_sub(1).unwrap_or(0);
+                    let diff = len.checked_sub($start);
+                    if diff.is_some_and(|diff| diff > 0) {
+                        redundant_tokens_error!();
+                    }
+                }};
+            }
+
             if let TokenKind::Identifier(ident) = &first_token.kind {
                 // as_str() shouldn't clone string, looks like it just
                 // does nothing but changes the type.
@@ -485,8 +502,16 @@ impl Parser {
                         }
 
                         let mut left_tokens = tokens.get(3..).unwrap().into_iter();
+                        let mut redundant_pos: usize = 3;
 
-                        while let Some(token) = left_tokens.next() {
+                        macro_rules! next_token {
+                            () => {{
+                                redundant_pos += 1;
+                                left_tokens.next()
+                            }};
+                        }
+
+                        while let Some(token) = next_token!() {
                             match &token.kind {
                                 TokenKind::ClosedParen => {
                                     // this returns function name:
@@ -494,7 +519,7 @@ impl Parser {
                                     //     return_type = Some(ident.clone());
                                     // }
 
-                                    if let Some(token) = left_tokens.next()
+                                    if let Some(token) = next_token!()
                                     && let TokenKind::Identifier(ident) = &token.kind {
                                         return_type = Some(ident.clone());
                                     }
@@ -515,14 +540,25 @@ impl Parser {
                         }
 
                         let return_type: String = if let Some(str) = return_type {
-                            println!("{str}");
                             str
                         } else {
                             print_error!(ExpectedToken, "expected return type");
                         };
 
+                        check_redundant_tokens!(redundant_pos - 1);
+
                         new_command = Some(Command {
                             kind: CommandKind::FunctionHeader { name, args, return_type }
+                        });
+                    }
+
+                    "end" => {
+                        if tokens.len() > 1 {
+                            redundant_tokens_error!();
+                        }
+
+                        new_command = Some(Command {
+                            kind: CommandKind::End
                         });
                     }
 
