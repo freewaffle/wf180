@@ -415,7 +415,11 @@ impl Parser {
                     let token = &tokens[$tokn];
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
                     eprintln!("  {line_str}");
-                    eprintln!(" {:->} ^", token.char_pos);
+                    eprint!("  ");
+                    for _ in 0..token.char_pos {
+                        eprint!(" ");
+                    }
+                    eprintln!("^");
                     eprintln!("  error: {}", $msg);
                     try_set_error!($err_kind);
                     continue 'tokens;
@@ -520,6 +524,9 @@ impl Parser {
 
             if let Some(command) = new_command && error.is_none() {
                 commands.push(command);
+            } else if error.is_some() {
+                // free memory taken by commands (we won't return them anyway)
+                commands = Vec::new();
             }
         }
 
