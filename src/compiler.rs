@@ -3,10 +3,7 @@ use std::io::{BufRead, BufReader};
 
 const MAX_IDENTIFIER_LENGTH: usize = 32;
 
-/* const BUILTIN_TYPES: [&str; 2] = [
-    "void",
-    "number"
-]; */
+const DEBUG: bool = true;
 
 #[derive(PartialEq, Debug)]
 #[repr(u8)]
@@ -167,7 +164,8 @@ impl Parser {
                         break;
                     }
 
-                    if !is_identifier_token!(ch) {
+                    let is_char = is_identifier_token!(ch) || ch.is_ascii_digit();
+                    if !is_char {
                         break;
                     }
 
@@ -596,24 +594,30 @@ pub fn compile_from_file(file: File, filename: String) -> Result<Vec<u8>, ErrorK
 
     let tokens = compiler.parse_file(file)?;
 
-    for line in tokens.iter() {
-        if let Some(tok) = line.first() {
-            print!("[{}] ", tok.line_pos);
-        } else {
-            continue;
-        }
+    if DEBUG {
+        println!("------------ TOKENS ------------");
+        for line in tokens.iter() {
+            if let Some(tok) = line.first() {
+                print!("[{}] ", tok.line_pos);
+            } else {
+                continue;
+            }
 
-        for token in line {
-            print!("{:?}, ", token.kind);
-        }
+            for token in line {
+                print!("{:?}, ", token.kind);
+            }
 
-        println!();
+            println!();
+        }
     }
 
     let commands = compiler.parse_tokens(tokens)?;
     
-    for command in commands.iter() {
-        println!("[{}] {:?}", command.line_pos, command.kind);
+    if DEBUG {
+        println!("------------ COMMANDS ------------");
+        for command in commands.iter() {
+            println!("[{}] {:#?}", command.line_pos, command.kind);
+        }
     }
 
     Ok(Vec::new())
