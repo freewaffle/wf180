@@ -100,7 +100,7 @@ impl Parser {
 
         let mut chars = line_str.chars().peekable();
         let mut line: Vec<Token> = Vec::new();
-        let mut char_pos: usize = 1;
+        let mut char_pos: usize = 0;
 
         macro_rules! print_error {
             ($err_kind:ident, $msg:expr) => {{
@@ -139,6 +139,13 @@ impl Parser {
             };
         }
 
+        macro_rules! next_char {
+            () => {{
+                char_pos += 1;
+                chars.next()
+            }};
+        }
+
         macro_rules! collect_identifier {
             ($start_char:expr) => {{
                 let mut ident: String = String::with_capacity(MAX_IDENTIFIER_LENGTH);
@@ -161,7 +168,7 @@ impl Parser {
                     }
 
                     ident.push(ch);
-                    chars.next();
+                    next_char!();
                 }
 
                 ident
@@ -195,7 +202,7 @@ impl Parser {
         }
 
         // `for ch in chars` takes ownership
-        while let Some(ch) = chars.next() {
+        while let Some(ch) = next_char!() {
             if ch.is_ascii_whitespace() {
                 continue
             }
@@ -246,7 +253,7 @@ impl Parser {
                         num_op!(num_b, checked_add, digit);
                     }
 
-                    chars.next();
+                    next_char!();
                 }
 
                 let snum: String = format!("{num_a}.{num_b}");
@@ -260,7 +267,7 @@ impl Parser {
                 let mut string: String = String::new();
                 let mut closed = false;
 
-                while let Some(ch) = chars.next() {
+                while let Some(ch) = next_char!() {
                     if is_string_token!(ch) {
                         closed = true;
                         break;
@@ -297,7 +304,7 @@ impl Parser {
                             if let Some(token) = line.last()
                             && let TokenKind::Identifier(left_ident) = &token.kind {
                                 remove_last_token = true;
-                                let ch = chars.next().unwrap();
+                                let ch = next_char!().unwrap();
                                 let right_ident = collect_identifier!(ch);
                                 TokenKind::DoubleIdentifier(left_ident.to_owned(), right_ident)
                             } else {
@@ -416,7 +423,7 @@ impl Parser {
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
                     eprintln!("  {line_str}");
                     eprint!("  ");
-                    for _ in 0..token.char_pos {
+                    for _ in 0..(token.char_pos - 2) {
                         eprint!(" ");
                     }
                     eprintln!("^");
@@ -478,14 +485,20 @@ impl Parser {
                             print_error!(ExpectedToken, "expected open paren '('", 2);
                         }
 
-                        let left_tokens = tokens.get(3..).unwrap();
+                        let mut left_tokens = tokens.get(3..).unwrap().into_iter();
 
-                        for (pos, token) in left_tokens.into_iter().enumerate() {
+                        while let Some(token) = left_tokens.next() {
                             let char_pos = token.char_pos;
 
                             match &token.kind {
                                 TokenKind::ClosedParen => {
-                                    if let Some(ident) = get_token_value!(pos + 1, Identifier) {
+                                    // this returns function name:
+                                    // if let Some(ident) = get_token_value!(pos + 1, Identifier) {
+                                    //     return_type = Some(ident.clone());
+                                    // }
+
+                                    if let Some(token) = left_tokens.next()
+                                    && let TokenKind::Identifier(ident) = &token.kind {
                                         return_type = Some(ident.clone());
                                     }
 
@@ -505,10 +518,10 @@ impl Parser {
                         }
 
                         let return_type: String = if let Some(str) = return_type {
+                            println!("{str}");
                             str
                         } else {
-                            let last_token = tokens.last().unwrap();
-                            print_error!(ExpectedToken, "expected return type", last_token.char_pos + 1);
+                            print_error!(ExpectedToken, "expected return type", tokens.len() - 1);
                         };
 
                         new_command = Some(Command {
