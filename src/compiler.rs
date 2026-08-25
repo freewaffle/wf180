@@ -413,12 +413,11 @@ impl Parser {
 
             let first_token = tokens.first().unwrap();
             let line_pos = first_token.line_pos;
-            let line_str = &first_token.line_str;
 
             let mut new_command: Option<Command> = None;
 
             macro_rules! print_error {
-                ($err_kind:ident, $msg:expr, $tokn:expr) => {{
+                /* ($err_kind:ident, $msg:expr, $tokn:expr) => {{
                     let token = &tokens[$tokn];
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
                     eprintln!("  {line_str}");
@@ -430,7 +429,7 @@ impl Parser {
                     eprintln!("  error: {}", $msg);
                     try_set_error!($err_kind);
                     continue 'tokens;
-                }};
+                }}; */
 
                 ($err_kind:ident, $msg:expr) => {{
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
@@ -475,21 +474,19 @@ impl Parser {
                         let name = if let Some(ident) = get_token_value!(1, Identifier) {
                             ident.clone()
                         } else {
-                            print_error!(ExpectedToken, "expected identifier", 1);
+                            print_error!(ExpectedToken, "expected identifier");
                         };
 
                         let mut args: Vec<TypedIdentifier> = Vec::new();
                         let mut return_type: Option<String> = None;
                         
                         if !is_token_of_type!(2, OpenParen) {
-                            print_error!(ExpectedToken, "expected open paren '('", 2);
+                            print_error!(ExpectedToken, "expected open paren '('");
                         }
 
                         let mut left_tokens = tokens.get(3..).unwrap().into_iter();
 
                         while let Some(token) = left_tokens.next() {
-                            let char_pos = token.char_pos;
-
                             match &token.kind {
                                 TokenKind::ClosedParen => {
                                     // this returns function name:
@@ -512,7 +509,7 @@ impl Parser {
                                     args.push(arg);
                                 }
                                 _ => {
-                                    print_error!(ExpectedToken, "expected typed identifier `name:type`", char_pos);
+                                    print_error!(ExpectedToken, "expected typed identifier `name:type`");
                                 }
                             }
                         }
@@ -521,7 +518,7 @@ impl Parser {
                             println!("{str}");
                             str
                         } else {
-                            print_error!(ExpectedToken, "expected return type", tokens.len() - 1);
+                            print_error!(ExpectedToken, "expected return type");
                         };
 
                         new_command = Some(Command {
@@ -532,7 +529,7 @@ impl Parser {
                     _ => {}
                 }
             } else {
-                print_error!(ExpectedToken, "expected identifier", 0);
+                print_error!(ExpectedToken, "expected identifier");
             }
 
             if let Some(command) = new_command && error.is_none() {
