@@ -74,7 +74,6 @@ pub enum ErrorKind {
     ExpectedToken,
 }
 
-// TODO: rename to Parser
 struct Parser {
     pub filename: String
 }
