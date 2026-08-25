@@ -91,7 +91,6 @@ impl Parser {
         }
     }
 
-    #[must_use]
     pub fn parse_line(&self, line_str: String, line_pos: usize) -> Result<Vec<Token>, ErrorKind> {
         let mut error: Option<ErrorKind> = None;
 
@@ -364,17 +363,15 @@ impl Parser {
         }
     }
 
-    #[must_use]
     pub fn parse_file(&self, file: File) -> Result<Vec<Vec<Token>>, ErrorKind> {
         let reader = BufReader::new(file);
         let input_lines = reader.lines().map(|line| line.unwrap());
-        let mut current_line: usize = 1;
 
         let mut lines: Vec<Vec<Token>> = Vec::new();
 
         let mut error: Option<ErrorKind> = None;
         
-        for input_line in input_lines {
+        for (current_line, input_line) in (1..).zip(input_lines) {
             match self.parse_line(input_line, current_line) {
                 Ok(line) => {
                     if error.is_none() {
@@ -387,8 +384,6 @@ impl Parser {
                     }
                 }
             }
-
-            current_line += 1;
         }
 
         if let Some(error) = error {
@@ -398,7 +393,6 @@ impl Parser {
         }
     }
 
-    #[must_use]
     pub fn parse_tokens(&self, tokens: Vec<Vec<Token>>) -> Result<Vec<Command>, ErrorKind> {
         let mut commands: Vec<Command> = Vec::new();
         let mut error: Option<ErrorKind> = None;
@@ -419,7 +413,7 @@ impl Parser {
             let first_token = tokens.first().unwrap();
             let line_pos = first_token.line_pos;
 
-            let mut new_command: Option<Command> = None;
+            let new_command: Option<Command>;
 
             macro_rules! print_error {
                 /* ($err_kind:ident, $msg:expr, $tokn:expr) => {{
@@ -514,7 +508,7 @@ impl Parser {
                             print_error!(ExpectedToken, "expected open paren '('");
                         }
 
-                        let mut left_tokens = tokens.get(3..).unwrap().into_iter();
+                        let mut left_tokens = tokens.get(3..).unwrap().iter();
                         let mut redundant_pos: usize = 3;
 
                         macro_rules! next_token {
