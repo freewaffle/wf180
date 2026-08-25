@@ -399,9 +399,9 @@ impl Parser {
             };
         }
         
-        'global: for tokens in tokens {
+        'tokens: for tokens in tokens {
             if tokens.is_empty() {
-                continue
+                continue 'tokens;
             }
 
             let first_token = tokens.first().unwrap();
@@ -418,14 +418,14 @@ impl Parser {
                     eprintln!(" {:->} ^", token.char_pos);
                     eprintln!("  error: {}", $msg);
                     try_set_error!($err_kind);
-                    continue 'global;
+                    continue 'tokens;
                 }};
 
                 ($err_kind:ident, $msg:expr) => {{
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
                     eprintln!("  error: {}", $msg);
                     try_set_error!($err_kind);
-                    continue 'global;
+                    continue 'tokens;
                 }};
             }
 
