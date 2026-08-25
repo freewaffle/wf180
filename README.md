@@ -2,8 +2,8 @@
 
 ## Checklist
 
--[ ] Bytecode compiler
+- [ ] Bytecode compiler
 
--[ ] Bytecode interpreter
+- [ ] Bytecode interpreter
 
--[ ] Documentation and README
+- [ ] Documentation and README
