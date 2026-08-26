@@ -18,6 +18,9 @@ enum TokenKind {
     Mul,
     Div,
 
+    Equal,
+    DoubleEqual,
+
     Comma,
     Colon,
     OpenParen,
@@ -296,6 +299,15 @@ impl Parser {
                     '-' => Some(TokenKind::Sub),
                     '*' => Some(TokenKind::Mul),
                     '/' => Some(TokenKind::Div),
+
+                    '=' => {
+                        if chars.peek().is_some_and(|ch| *ch == '=') {
+                            next_char!();
+                            Some(TokenKind::DoubleEqual)
+                        } else {
+                            Some(TokenKind::Equal)
+                        }
+                    }
 
                     ',' => Some(TokenKind::Comma),
 
