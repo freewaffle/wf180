@@ -508,7 +508,6 @@ impl Parser {
                         };
 
                         let mut args: Vec<TypedIdentifier> = Vec::new();
-                        let mut return_type: Option<String> = None;
                         
                         if !is_token_of_type!(2, OpenParen) {
                             print_error!(ExpectedToken, "expected open paren '('");
@@ -534,12 +533,6 @@ impl Parser {
                                     // }
 
                                     has_closed_paren = true;
-
-                                    if let Some(token) = next_token!()
-                                    && let TokenKind::Identifier(ident) = &token.kind {
-                                        return_type = Some(ident.clone());
-                                    }
-
                                     break;
                                 }
                                 TokenKind::DoubleIdentifier(ident, ty) => {
@@ -564,8 +557,9 @@ impl Parser {
                             print_error!(ExpectedToken, "expected closed paren ')' after arguments list");
                         }
 
-                        let return_type: String = if let Some(str) = return_type {
-                            str
+                        let return_type: String = if let Some(token) = next_token!()
+                        && let TokenKind::Identifier(ident) = &token.kind {
+                            ident.clone()
                         } else {
                             print_error!(ExpectedToken, "expected return type");
                         };
