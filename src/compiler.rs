@@ -5,7 +5,7 @@ const MAX_IDENTIFIER_LENGTH: usize = 32;
 
 const DEBUG: bool = true;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 #[repr(u8)]
 enum TokenKind {
     Identifier(String),
@@ -27,7 +27,7 @@ enum TokenKind {
     ClosedParen
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Token {
     pub line_pos: usize,
     pub char_pos: usize,
@@ -58,7 +58,7 @@ enum CommandKind {
     },
     End,
     Let {
-        var: TypedIdentifier,
+        ident: TypedIdentifier,
         expr: Vec<Token>
     },
 }
@@ -75,7 +75,7 @@ pub enum ErrorKind {
     TooLongIdentifier,
     RedundantDot,
     UnclosedString,
-    ExpectedToken,
+    ExpectedTokens,
     RedundantTokens,
 }
 
@@ -469,6 +469,21 @@ impl Parser {
                 };
             }
 
+            macro_rules! get_typed_identifier {
+                ($index:expr) => {
+                    match tokens.get($index) {
+                        Some(Token {
+                            kind: TokenKind::DoubleIdentifier(ident, ty),
+                            ..
+                        }) => Some(TypedIdentifier {
+                            ident: ident.clone(),
+                            ty: ty.clone()
+                        }),
+                        _ => None,
+                    }
+                };
+            }
+
             macro_rules! redundant_tokens_error {
                 () => {
                     print_error!(RedundantTokens, "redundant tokens");
@@ -511,18 +526,20 @@ impl Parser {
                 // produced tokens to this function, dropping them after this
                 // function finishes.
 
-                new_command = match ident.as_str() {
+                let ident = ident.as_str();
+
+                new_command = match ident {
                     "func" => {
                         let name = if let Some(ident) = get_token_value!(1, Identifier) {
                             ident.clone()
                         } else {
-                            print_error!(ExpectedToken, "expected identifier");
+                            print_error!(ExpectedTokens, "expected identifier");
                         };
 
                         let mut args: Vec<TypedIdentifier> = Vec::new();
                         
                         if !is_token_of_type!(2, OpenParen) {
-                            print_error!(ExpectedToken, "expected open paren '('");
+                            print_error!(ExpectedTokens, "expected open paren '('");
                         }
 
                         let mut left_tokens = tokens.get(3..).unwrap().iter();
@@ -556,24 +573,24 @@ impl Parser {
                                     args.push(arg);
 
                                     if next_token!().is_some_and(|tok| tok.kind != TokenKind::OpenParen) {
-                                        print_error!(ExpectedToken, "expected colon ',' after argument");
+                                        print_error!(ExpectedTokens, "expected colon ',' after argument");
                                     }
                                 }
                                 _ => {
-                                    print_error!(ExpectedToken, "expected typed identifier `name:type`");
+                                    print_error!(ExpectedTokens, "expected typed identifier `name:type`");
                                 }
                             }
                         }
 
                         if !has_closed_paren {
-                            print_error!(ExpectedToken, "expected closed paren ')' after arguments list");
+                            print_error!(ExpectedTokens, "expected closed paren ')' after arguments list");
                         }
 
                         let return_type: String = if let Some(token) = next_token!()
                         && let TokenKind::Identifier(ident) = &token.kind {
                             ident.clone()
                         } else {
-                            print_error!(ExpectedToken, "expected return type");
+                            print_error!(ExpectedTokens, "expected return type");
                         };
 
                         check_redundant_tokens!(redundant_pos - 1);
@@ -587,12 +604,51 @@ impl Parser {
                         Some(command!(CommandKind::End))
                     }
 
+                    "let" | "set" | "shadow" => {
+                        let updating_variable = ident == "set";
+
+                        let ident: TypedIdentifier;
+                        let op: TokenKind;
+                        let mut expr: Vec<Token> = Vec::new();
+
+                        if updating_variable {
+                            todo!();
+                        } else {
+                            ident = if let Some(name) = get_typed_identifier!(1) {
+                                name
+                            } else {
+                                print_error!(ExpectedTokens, "expected typed identifier `name:type`");
+                            };
+
+                            op = if is_token_of_type!(2, Equal) {
+                                TokenKind::Equal
+                            } else {
+                                print_error!(ExpectedTokens, "expected equality symbol '='");
+                            };
+                        }
+
+                        let expr_tokens = if let Some(tokens) = tokens.get(3..) {
+                            tokens
+                        } else {
+                            print_error!(ExpectedTokens, "expected expression");
+                        };
+                        
+                        for token in expr_tokens {
+                            // would be nice to add syntax check here
+
+                            expr.push(token.clone());
+                        }
+
+                        let command = command!(CommandKind::Let { ident, expr });
+                        Some(command)
+                    }
+
                     _ => {
                         None
                     }
                 }
             } else {
-                print_error!(ExpectedToken, "expected identifier");
+                print_error!(ExpectedTokens, "expected identifier");
             }
 
             if error.is_none() {
