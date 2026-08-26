@@ -30,9 +30,7 @@ enum TokenKind {
 #[derive(Debug, Clone)]
 struct Token {
     pub line_pos: usize,
-    pub char_pos: usize,
     pub kind: TokenKind,
-    pub line_str: String
 }
 
 #[derive(Debug)]
@@ -105,7 +103,6 @@ impl Parser {
 
         let mut chars = line_str.chars().peekable();
         let mut line: Vec<Token> = Vec::new();
-        let mut char_pos: usize = 0;
 
         macro_rules! print_error {
             ($err_kind:ident, $msg:expr) => {{
@@ -146,7 +143,6 @@ impl Parser {
 
         macro_rules! next_char {
             () => {{
-                char_pos += 1;
                 chars.next()
             }};
         }
@@ -181,12 +177,6 @@ impl Parser {
             }};
         }
 
-        macro_rules! get_line_str {
-            () => {
-                line_str.to_owned()
-            };
-        }
-
         macro_rules! token {
             ($kind:ident) => {
                 Token {
@@ -200,9 +190,7 @@ impl Parser {
             ($kind:ident, $expr:expr) => {
                 Token {
                     line_pos,
-                    char_pos,
                     kind: TokenKind::$kind($expr),
-                    line_str: get_line_str!()
                 }
             };
         }
@@ -346,9 +334,7 @@ impl Parser {
                 if let Some(kind) = kind {
                     new_token = Some(Token {
                         line_pos,
-                        char_pos,
                         kind,
-                        line_str: get_line_str!()
                     });
                 } // else None
             }
@@ -363,8 +349,6 @@ impl Parser {
                     ch
                 ));
             }
-
-            char_pos += 1;
         }
 
         if let Some(error) = error {
@@ -427,20 +411,6 @@ impl Parser {
             let new_command: Option<Command>;
 
             macro_rules! print_error {
-                /* ($err_kind:ident, $msg:expr, $tokn:expr) => {{
-                    let token = &tokens[$tokn];
-                    eprintln!("[{}]: line {}:", self.filename, line_pos);
-                    eprintln!("  {line_str}");
-                    eprint!("  ");
-                    for _ in 0..(token.char_pos - 2) {
-                        eprint!(" ");
-                    }
-                    eprintln!("^");
-                    eprintln!("  error: {}", $msg);
-                    try_set_error!($err_kind);
-                    continue 'tokens;
-                }}; */
-
                 ($err_kind:ident, $msg:expr) => {{
                     eprintln!("[{}]: line {}:", self.filename, line_pos);
                     eprintln!("  error: {}", $msg);
