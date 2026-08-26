@@ -423,9 +423,6 @@ impl Parser {
                 ($pos:expr, $kind:ident) => {
                     (tokens.get($pos).is_some_and(|tok| tok.kind == TokenKind::$kind))
                 };
-                ($pos:expr, $kind:ident, $expr:expr) => {
-                    (tokens.get($pos).is_some_and(|tok| tok.kind == TokenKind::$kind($expr)))
-                };
             }
 
             macro_rules! get_token_value {
@@ -605,8 +602,6 @@ impl Parser {
                         };
                         
                         for token in expr_tokens {
-                            // would be nice to add syntax check here
-
                             expr.push(token.clone());
                         }
 
