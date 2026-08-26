@@ -59,6 +59,7 @@ enum CommandKind {
     End,
     Let {
         ident: TypedIdentifier,
+        op: TokenKind,
         expr: Vec<Token>
     },
 }
@@ -639,7 +640,7 @@ impl Parser {
                             expr.push(token.clone());
                         }
 
-                        let command = command!(CommandKind::Let { ident, expr });
+                        let command = command!(CommandKind::Let { ident, op, expr });
                         Some(command)
                     }
 
