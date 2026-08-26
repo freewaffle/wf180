@@ -473,6 +473,14 @@ impl Parser {
                 }};
             }
 
+            macro_rules! assert_redundant_tokens {
+                ($cond:expr) => {
+                    if $cond {
+                        redundant_tokens_error!();
+                    }
+                };
+            }
+
             macro_rules! command {
                 ($kind:expr) => {
                     Command {
@@ -556,9 +564,7 @@ impl Parser {
                     }
 
                     "end" => {
-                        if tokens.len() > 1 {
-                            redundant_tokens_error!();
-                        }
+                        assert_redundant_tokens!(tokens.len() > 1);
 
                         Some(command!(CommandKind::End))
                     }
