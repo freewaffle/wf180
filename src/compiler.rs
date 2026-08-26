@@ -516,6 +516,7 @@ impl Parser {
 
                         let mut left_tokens = tokens.get(3..).unwrap().iter();
                         let mut redundant_pos: usize = 3;
+                        let mut has_closed_paren = false;
 
                         macro_rules! next_token {
                             () => {{
@@ -531,6 +532,8 @@ impl Parser {
                                     // if let Some(ident) = get_token_value!(pos + 1, Identifier) {
                                     //     return_type = Some(ident.clone());
                                     // }
+
+                                    has_closed_paren = true;
 
                                     if let Some(token) = next_token!()
                                     && let TokenKind::Identifier(ident) = &token.kind {
@@ -555,6 +558,10 @@ impl Parser {
                                     print_error!(ExpectedToken, "expected typed identifier `name:type`");
                                 }
                             }
+                        }
+
+                        if !has_closed_paren {
+                            print_error!(ExpectedToken, "expected closed paren ')' after arguments list");
                         }
 
                         let return_type: String = if let Some(str) = return_type {
