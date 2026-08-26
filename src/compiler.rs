@@ -544,7 +544,12 @@ impl Parser {
                                         ident: ident.clone(),
                                         ty: ty.clone()
                                     };
+
                                     args.push(arg);
+
+                                    if next_token!().is_some_and(|tok| tok.kind != TokenKind::OpenParen) {
+                                        print_error!(ExpectedToken, "expected colon ',' after argument");
+                                    }
                                 }
                                 _ => {
                                     print_error!(ExpectedToken, "expected typed identifier `name:type`");
