@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 const MAX_IDENTIFIER_LENGTH: usize = 32;
+const MAX_EXPRESSION_DEPTH: u8 = 128;
 
 const DEBUG: bool = true;
 
@@ -13,13 +14,18 @@ enum TokenKind {
     String(String),
     Number(f32),
 
+    InlineFunctionCall {
+        name: String,
+        args: Vec<Vec<Token>>
+    },
+
     Add,
     Sub,
     Mul,
     Div,
 
-    Equal,
-    DoubleEqual,
+    Equality,
+    DoubleEquality,
 
     Comma,
     Colon,
@@ -27,7 +33,7 @@ enum TokenKind {
     ClosedParen
 }
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 struct Token {
     pub line_pos: usize,
     pub kind: TokenKind,
@@ -292,9 +298,9 @@ impl Parser {
                     '=' => {
                         if chars.peek().is_some_and(|ch| *ch == '=') {
                             next_char!();
-                            Some(TokenKind::DoubleEqual)
+                            Some(TokenKind::DoubleEquality)
                         } else {
-                            Some(TokenKind::Equal)
+                            Some(TokenKind::Equality)
                         }
                     }
 
@@ -588,8 +594,8 @@ impl Parser {
                                 print_error!(ExpectedTokens, "expected typed identifier `name:type`");
                             };
 
-                            op = if is_token_of_type!(2, Equal) {
-                                TokenKind::Equal
+                            op = if is_token_of_type!(2, Equality) {
+                                TokenKind::Equality
                             } else {
                                 print_error!(ExpectedTokens, "expected equality symbol '='");
                             };
@@ -600,9 +606,102 @@ impl Parser {
                         } else {
                             print_error!(ExpectedTokens, "expected expression");
                         };
+
+                        /*
+                            expecting...
+                            if true:  number or open paren
+                            if false: operator or closed paren
+                        */
+                        let mut expecting_number = true;
+
+                        macro_rules! invert {
+                            () => {
+                                expecting_number = !expecting_number;
+                            };
+                        }
+
+                        macro_rules! malformed {
+                            () => {{
+                                let what = if expecting_number {
+                                    "number or open paren"
+                                } else {
+                                    "operator or closed paren"
+                                };
+                                print_error!(ExpectedTokens, format!("malformed expression: expected {what}"));
+                            }};
+                        }
+
+                        macro_rules! assert_malformed {
+                            ($cond:expr) => {
+                                if $cond {
+                                    invert!();
+                                } else {
+                                    malformed!();
+                                }
+                            };
+                        }
                         
+                        /*
+                            increments on open paren,
+                            decrements on closed paren
+                        */
+                        let mut paren_counter: u8 = 0;
+
                         for token in expr_tokens {
+                            use TokenKind::*;
+
+                            // 1. check for malformness
+                            match token.kind {
+                                Number(_) => {
+                                    assert_malformed!(expecting_number);
+                                }
+
+                                OpenParen => {
+                                    if !expecting_number {
+                                        malformed!();
+                                    }
+                                }
+
+                                Add | Sub | Mul | Div | DoubleEquality | ClosedParen => {
+                                    assert_malformed!(!expecting_number);
+                                }
+
+                                _ => {
+                                    malformed!();
+                                }
+                            }
+
+                            // 2. count parenthesis
+                            match token.kind {
+                                OpenParen => {
+                                    if let Some(sum) = paren_counter.checked_add(1)
+                                    && sum < MAX_EXPRESSION_DEPTH {
+                                        paren_counter = sum;
+                                    } else {
+                                        print_error!(ExpectedTokens, "too many nested parentheses");
+                                    }
+                                }
+
+                                ClosedParen => {
+                                    if let Some(diff) = paren_counter.checked_sub(1) {
+                                        paren_counter = diff;
+                                    } else {
+                                        print_error!(ExpectedTokens, "unmatched closed paren ')'");
+                                    }
+                                }
+
+                                _ => {}
+                            }
+
                             expr.push(token.clone());
+                        }
+
+                        if paren_counter > 0 {
+                            print_error!(ExpectedTokens, "missing closed parentheses ')'");
+                        }
+                        
+                        if expecting_number {
+                            malformed!();
                         }
 
                         let command = command!(CommandKind::Let { ident, op, expr });
