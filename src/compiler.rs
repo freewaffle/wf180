@@ -33,6 +33,34 @@ enum TokenKind {
     ClosedParen
 }
 
+impl TokenKind {
+    /* #[inline]
+    fn description(&self) -> &str {
+        use TokenKind::*;
+        match self {
+            Identifier(..) => "an identifier",
+            DoubleIdentifier(..) => "a typed identifier `name:type`",
+            String(..) => "a string literal",
+            Number(..) => "a number",
+
+            InlineFunctionCall { .. } => "an inline function call",
+
+            Add => "an addition symbol '+'",
+            Sub => "a substraction symbol '-'",
+            Mul => "a multiplication symbol '*'",
+            Div => "a division symbol '/'",
+
+            Equality => "an equality symbol '='",
+            DoubleEquality => "a double equality symbol '=='",
+
+            Comma => "a comma ','",
+            Colon => "a colon ':'",
+            OpenParen => "an open parenthesis '('",
+            ClosedParen => "a closed parenthesis ')'",
+        }
+    } */
+}
+
 #[derive(PartialEq, Debug, Clone)]
 struct Token {
     pub line_pos: usize,
@@ -735,8 +763,7 @@ impl Parser {
                                 let op: TokenKind = if possible_ops.contains(&operator.kind) {
                                     operator.kind
                                 } else {
-                                    // this should be automated
-                                    print_error!(ExpectedTokens, "expected one of '=', '+', '-', '*', '/' operators");
+                                    print_error!(ExpectedTokens, "invalid operator");
                                 };
 
                                 command!(CommandKind::VariableUpdate { name, op, expr })
