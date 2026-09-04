@@ -783,7 +783,7 @@ impl Parser {
                     }
 
                     _ => {
-                        let name: String = if let Some(ident) = get_token_value!(1, Identifier) {
+                        let name: String = if let Some(ident) = get_token_value!(0, Identifier) {
                             ident.clone()
                         } else {
                             print_error!(ExpectedTokens, "expected identifier");
