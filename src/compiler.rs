@@ -798,16 +798,18 @@ impl Parser {
                                 print_error!(ExpectedTokens, "expected expression");
                             };
 
-                            let args_parts = args_tokens.split(|tok| tok.kind == TokenKind::Comma);
+                            if !args_tokens.is_empty() {
+                                let args_parts = args_tokens.split(|tok| tok.kind == TokenKind::Comma);
 
-                            for part in args_parts {
-                                if part.is_empty() {
-                                    print_error!(ExpectedTokens, "expected expression");
+                                for part in args_parts {
+                                    if part.is_empty() {
+                                        print_error!(ExpectedTokens, "expected expression");
+                                    }
+
+                                    let expr: Vec<Token> = collect_expr!(part);
+
+                                    args.push(expr);
                                 }
-
-                                let expr: Vec<Token> = collect_expr!(part);
-
-                                args.push(expr);
                             }
                         }
                         
