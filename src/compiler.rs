@@ -525,13 +525,13 @@ impl Parser {
                 };
             }
 
-            macro_rules! expr_collector {
+            macro_rules! collect_expr {
                 ($tokens:expr) => {{
                     let mut expr: Vec<Token> = Vec::new();
 
                     /*
                         expecting...
-                        if true:  number or open paren
+                        if true:  number, identifier or open paren
                         if false: operator or closed paren
                     */
                     let mut expecting_number = true;
@@ -545,7 +545,7 @@ impl Parser {
                     macro_rules! malformed {
                         () => {{
                             let what = if expecting_number {
-                                "number or open paren"
+                                "number, identifier or open paren"
                             } else {
                                 "operator or closed paren"
                             };
@@ -574,11 +574,12 @@ impl Parser {
 
                         // 1. check for malformness
                         match token.kind {
-                            Number(_) => {
+                            Number(..) | Identifier(..) => {
                                 assert_malformed!(expecting_number);
                             }
 
                             OpenParen => {
+                                // same as `assert_malformed!`, but without `invert!`
                                 if !expecting_number {
                                     malformed!();
                                 }
@@ -730,7 +731,7 @@ impl Parser {
                             print_error!(ExpectedTokens, "expected expression");
                         };
 
-                        let expr: Vec<Token> = expr_collector!(expr_tokens);
+                        let expr: Vec<Token> = collect_expr!(expr_tokens);
 
                         let command = match ident {
                             "let" | "shadow" => {
@@ -804,7 +805,7 @@ impl Parser {
                                     print_error!(ExpectedTokens, "expected expression");
                                 }
 
-                                let expr: Vec<Token> = expr_collector!(part);
+                                let expr: Vec<Token> = collect_expr!(part);
 
                                 args.push(expr);
                             }
